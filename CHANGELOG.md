@@ -1,5 +1,12 @@
 
 
+## [1.11.1](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.11.0...1.11.1) (2026-10-30)
+
+
+### Bug Fixes
+
+* keep original text when post-processing from the editor ([2c4d132](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/commit/2c4d13259671ee16f6e12e94abc93e1182d5726e))
+
 ## [1.11.0](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.10.0...1.11.0) (2026-10-30)
 
 
