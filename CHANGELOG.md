@@ -1,5 +1,7 @@
 
 
+## [1.9.3](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.9.2...1.9.3) (2026-10-30)
+
 ## [1.9.2](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.9.1...1.9.2) (2026-10-30)
 
 
