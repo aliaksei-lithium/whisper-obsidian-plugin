@@ -60,6 +60,13 @@ export class PostProcessor {
 				},
 			}
 		);
-		return response.data.content[0].text;
+		// Responses may start with non-text blocks (e.g. "thinking"), so collect only text blocks
+		const blocks: { type: string; text?: string }[] =
+			response.data.content ?? [];
+		return blocks
+			.filter((block) => block.type === "text")
+			.map((block) => block.text ?? "")
+			.join("")
+			.trim();
 	}
 }
