@@ -8,6 +8,7 @@ import {
 	sanitizeFileName,
 	isUntitledName,
 	splitFrontmatter,
+	blockSeparator,
 } from "../src/utils";
 
 describe("getBaseFileName", () => {
@@ -199,5 +200,19 @@ describe("splitFrontmatter", () => {
 	it("ignores a horizontal rule that is not at the start", () => {
 		const text = "Text\n---\nmore\n---\n";
 		expect(splitFrontmatter(text).body).toBe(text);
+	});
+});
+
+describe("blockSeparator", () => {
+	it("adds a blank line after text without a trailing newline", () => {
+		expect(blockSeparator("text")).toBe("\n\n");
+	});
+
+	it("completes the blank line after a single newline", () => {
+		expect(blockSeparator("text\n")).toBe("\n");
+	});
+
+	it("adds nothing when a blank line is already there", () => {
+		expect(blockSeparator("text\n\n")).toBe("");
 	});
 });

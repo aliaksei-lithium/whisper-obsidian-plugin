@@ -89,3 +89,9 @@ export function splitFrontmatter(text: string): {
 		body: text.slice(match[0].length),
 	};
 }
+
+// Separator that leaves one blank line between existing text and a new block
+export function blockSeparator(before: string): string {
+	if (!before || before.endsWith("\n\n")) return "";
+	return before.endsWith("\n") ? "\n" : "\n\n";
+}

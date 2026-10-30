@@ -9,6 +9,7 @@ import {
 	sanitizeFileName,
 	isUntitledName,
 	splitFrontmatter,
+	blockSeparator,
 } from "./utils";
 import { createPostProcessor } from "./PostProcessor";
 
@@ -264,7 +265,8 @@ export class AudioHandler {
 		}
 	}
 
-	// Post-processes the selection, or the whole note body when nothing is selected
+	// Post-processes the selection, or the whole note body when nothing is selected,
+	// and inserts the result below it
 	async postProcessEditor(editor: Editor, file: TFile | null): Promise<void> {
 		const processor = createPostProcessor(this.plugin.settings);
 		if (!processor) {
@@ -273,7 +275,7 @@ export class AudioHandler {
 		}
 
 		const selection = editor.getSelection();
-		const { frontmatter, body } = splitFrontmatter(editor.getValue());
+		const { body } = splitFrontmatter(editor.getValue());
 		const input = selection || body;
 		if (!input.trim()) {
 			new Notice("✘ Nothing to post-process");
@@ -286,14 +288,16 @@ export class AudioHandler {
 				input,
 				this.plugin.settings.postProcessingPrompt
 			);
-			if (selection) {
-				editor.replaceSelection(output);
-			} else {
-				// Replace only the body so frontmatter stays untouched
-				const from = editor.offsetToPos(frontmatter.length);
-				const to = editor.offsetToPos(editor.getValue().length);
-				editor.replaceRange(output, from, to);
-			}
+			// Keep the original and insert the result after it
+			const end = selection
+				? editor.getCursor("to")
+				: editor.offsetToPos(editor.getValue().length);
+			const before = editor.getRange({ line: 0, ch: 0 }, end);
+			const inserted = `${blockSeparator(before)}${output}`;
+			editor.replaceRange(inserted, end);
+			editor.setCursor(
+				editor.offsetToPos(editor.posToOffset(end) + inserted.length)
+			);
 
 			if (this.plugin.settings.autoGenerateTitle) {
 				await this.renameIfUntitled(file, output);
