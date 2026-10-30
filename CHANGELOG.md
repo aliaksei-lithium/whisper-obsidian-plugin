@@ -1,5 +1,12 @@
 
 
+## [1.11.0](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.10.0...1.11.0) (2026-10-30)
+
+
+### Features
+
+* add post-processing to the editor context menu ([f62a800](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/commit/f62a800c1970a322fae0704d29b7ef0516916a00))
+
 ## [1.10.0](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.9.3...1.10.0) (2026-10-30)
 
 
