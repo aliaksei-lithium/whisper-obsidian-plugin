@@ -5,6 +5,9 @@ import {
 	getExtensionFromMimeType,
 	resolveTemplate,
 	buildTemplateVariables,
+	sanitizeFileName,
+	isUntitledName,
+	splitFrontmatter,
 } from "../src/utils";
 
 describe("getBaseFileName", () => {
@@ -157,5 +160,44 @@ describe("buildTemplateVariables", () => {
 		expect(vars.title).toBe("title");
 		expect(vars.transcription).toBe("text");
 		expect(vars.audioFile).toBe("audio.webm");
+	});
+});
+
+describe("sanitizeFileName", () => {
+	it("replaces characters not allowed in filenames", () => {
+		expect(sanitizeFileName(' a/b:c?"d" ')).toBe("a-b-c--d-");
+	});
+});
+
+describe("isUntitledName", () => {
+	it("matches Obsidian default note names", () => {
+		expect(isUntitledName("Untitled")).toBe(true);
+		expect(isUntitledName("Untitled 3")).toBe(true);
+	});
+
+	it("does not match named notes", () => {
+		expect(isUntitledName("Untitled ideas")).toBe(false);
+		expect(isUntitledName("Meeting notes")).toBe(false);
+	});
+});
+
+describe("splitFrontmatter", () => {
+	it("returns the whole text as body without frontmatter", () => {
+		expect(splitFrontmatter("Hello\nworld")).toEqual({
+			frontmatter: "",
+			body: "Hello\nworld",
+		});
+	});
+
+	it("separates leading frontmatter from the body", () => {
+		expect(splitFrontmatter("---\ntags: [a]\n---\nBody")).toEqual({
+			frontmatter: "---\ntags: [a]\n---\n",
+			body: "Body",
+		});
+	});
+
+	it("ignores a horizontal rule that is not at the start", () => {
+		const text = "Text\n---\nmore\n---\n";
+		expect(splitFrontmatter(text).body).toBe(text);
 	});
 });

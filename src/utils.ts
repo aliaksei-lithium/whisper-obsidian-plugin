@@ -67,3 +67,25 @@ export function getBaseFileName(filePath: string) {
 	const dotIndex = fileName.lastIndexOf(".");
 	return dotIndex > 0 ? fileName.substring(0, dotIndex) : fileName;
 }
+
+export function sanitizeFileName(name: string): string {
+	return name.replace(/[/\\?%*:|"<>\n]/g, "-").trim();
+}
+
+// Matches Obsidian's default names for new notes: "Untitled", "Untitled 3"
+export function isUntitledName(basename: string): boolean {
+	return /^Untitled( \d+)?$/.test(basename);
+}
+
+// Splits leading YAML frontmatter from the note body
+export function splitFrontmatter(text: string): {
+	frontmatter: string;
+	body: string;
+} {
+	const match = text.match(/^---\r?\n[\s\S]*?\r?\n---(\r?\n|$)/);
+	if (!match) return { frontmatter: "", body: text };
+	return {
+		frontmatter: match[0],
+		body: text.slice(match[0].length),
+	};
+}

@@ -1,5 +1,31 @@
 import axios from "axios";
-import { PostProcessingProvider } from "./SettingsManager";
+import { PluginSettings, PostProcessingProvider } from "./SettingsManager";
+import { sanitizeFileName } from "./utils";
+
+function getPostProcessingApiKey(settings: PluginSettings): string {
+	switch (settings.postProcessingProvider) {
+		case "anthropic":
+			return settings.anthropicApiKey;
+		case "openai":
+			return settings.openAiApiKey;
+		case "custom":
+			return settings.postProcessingApiKey;
+	}
+}
+
+// Returns null when the selected provider has no API key
+export function createPostProcessor(
+	settings: PluginSettings
+): PostProcessor | null {
+	const apiKey = getPostProcessingApiKey(settings);
+	if (!apiKey) return null;
+	return new PostProcessor({
+		apiKey,
+		model: settings.postProcessingModel,
+		url: settings.postProcessingUrl,
+		provider: settings.postProcessingProvider,
+	});
+}
 
 export interface PostProcessorConfig {
 	apiKey: string;
@@ -20,6 +46,12 @@ export class PostProcessor {
 			return this.callAnthropic(text, prompt);
 		}
 		return this.callOpenAI(text, prompt);
+	}
+
+	// Returns a title safe to use as a filename, or "" if none was generated
+	async generateTitle(text: string, prompt: string): Promise<string> {
+		const title = await this.process(text, prompt);
+		return sanitizeFileName(title).slice(0, 100).trim();
 	}
 
 	private async callOpenAI(text: string, prompt: string): Promise<string> {

@@ -218,6 +218,13 @@ export default class Whisper extends Plugin {
 			name: "Open recording controls",
 			callback: () => this.openControls(),
 		});
+
+		this.addCommand({
+			id: "post-process-text",
+			name: "Post-process selection or note",
+			editorCallback: (editor, ctx) =>
+				this.audioHandler.postProcessEditor(editor, ctx.file),
+		});
 	}
 
 	// --- URI Handler ---

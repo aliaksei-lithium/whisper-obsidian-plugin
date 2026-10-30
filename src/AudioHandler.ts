@@ -1,30 +1,22 @@
 import axios from "axios";
 import Whisper from "main";
-import { Notice, MarkdownView } from "obsidian";
+import { Notice, MarkdownView, Editor, TFile } from "obsidian";
 import {
 	getBaseFileName,
 	getCursorContext,
 	buildTemplateVariables,
 	resolveTemplate,
+	sanitizeFileName,
+	isUntitledName,
+	splitFrontmatter,
 } from "./utils";
-import { PostProcessor } from "./PostProcessor";
+import { createPostProcessor } from "./PostProcessor";
 
 export class AudioHandler {
 	private plugin: Whisper;
 
 	constructor(plugin: Whisper) {
 		this.plugin = plugin;
-	}
-
-	private getPostProcessingApiKey(): string {
-		switch (this.plugin.settings.postProcessingProvider) {
-			case "anthropic":
-				return this.plugin.settings.anthropicApiKey;
-			case "openai":
-				return this.plugin.settings.openAiApiKey;
-			case "custom":
-				return this.plugin.settings.postProcessingApiKey;
-		}
 	}
 
 	private async ensureFolderExists(folderPath: string): Promise<void> {
@@ -149,8 +141,8 @@ export class AudioHandler {
 
 			// Post-process with LLM if enabled
 			if (this.plugin.settings.postProcessing) {
-				const ppApiKey = this.getPostProcessingApiKey();
-				if (!ppApiKey) {
+				const processor = createPostProcessor(this.plugin.settings);
+				if (!processor) {
 					new Notice(
 						"✘ Add your post-processing API key in settings"
 					);
@@ -160,12 +152,6 @@ export class AudioHandler {
 					if (this.plugin.settings.debugMode) {
 						new Notice("Post-processing...");
 					}
-					const processor = new PostProcessor({
-						apiKey: ppApiKey,
-						model: this.plugin.settings.postProcessingModel,
-						url: this.plugin.settings.postProcessingUrl,
-						provider: this.plugin.settings.postProcessingProvider,
-					});
 					finalText = await processor.process(
 						originalText,
 						this.plugin.settings.postProcessingPrompt
@@ -185,24 +171,15 @@ export class AudioHandler {
 				this.plugin.settings.autoGenerateTitle &&
 				this.plugin.settings.createNoteFile
 			) {
-				const ppApiKey = this.getPostProcessingApiKey();
-				if (ppApiKey) {
+				const processor = createPostProcessor(this.plugin.settings);
+				if (processor) {
 					try {
-						const processor = new PostProcessor({
-							apiKey: ppApiKey,
-							model: this.plugin.settings.postProcessingModel,
-							url: this.plugin.settings.postProcessingUrl,
-							provider: this.plugin.settings.postProcessingProvider,
-						});
-						const title = await processor.process(
+						const title = await processor.generateTitle(
 							finalText,
 							this.plugin.settings.titleGenerationPrompt
 						);
-						const sanitizedTitle = title
-							.replace(/[/\\?%*:|"<>\n]/g, "-")
-							.trim();
-						if (sanitizedTitle) {
-							generatedTitle = sanitizedTitle;
+						if (title) {
+							generatedTitle = title;
 						}
 					} catch (err) {
 						console.error("Title generation failed:", err);
@@ -230,12 +207,12 @@ export class AudioHandler {
 
 				// Resolve filename template
 				const resolvedFilename =
-					resolveTemplate(
-						this.plugin.settings.noteFilenameTemplate,
-						vars
-					)
-						.replace(/[/\\?%*:|"<>\n]/g, "-")
-						.trim() || baseFileName;
+					sanitizeFileName(
+						resolveTemplate(
+							this.plugin.settings.noteFilenameTemplate,
+							vars
+						)
+					) || baseFileName;
 
 				const folder = this.plugin.settings.noteSavePath;
 				const resolvedNoteFilePath = `${
@@ -255,10 +232,9 @@ export class AudioHandler {
 			}
 
 			// Paste at cursor if there's an active editor
-			const editor =
-				this.plugin.app.workspace.getActiveViewOfType(
-					MarkdownView
-				)?.editor;
+			const view =
+				this.plugin.app.workspace.getActiveViewOfType(MarkdownView);
+			const editor = view?.editor;
 			if (editor) {
 				const cursorPosition = editor.getCursor();
 				editor.replaceRange(outputText, cursorPosition);
@@ -268,6 +244,14 @@ export class AudioHandler {
 					ch: cursorPosition.ch + outputText.length,
 				};
 				editor.setCursor(newPosition);
+
+				// Name the open note after its content if it's still "Untitled"
+				if (
+					this.plugin.settings.autoGenerateTitle &&
+					!this.plugin.settings.createNoteFile
+				) {
+					await this.renameIfUntitled(view.file, finalText);
+				}
 			}
 
 			new Notice("Transcription complete");
@@ -277,6 +261,85 @@ export class AudioHandler {
 				"✘ Transcription failed: " +
 					(err instanceof Error ? err.message : String(err))
 			);
+		}
+	}
+
+	// Post-processes the selection, or the whole note body when nothing is selected
+	async postProcessEditor(editor: Editor, file: TFile | null): Promise<void> {
+		const processor = createPostProcessor(this.plugin.settings);
+		if (!processor) {
+			new Notice("✘ Add your post-processing API key in settings");
+			return;
+		}
+
+		const selection = editor.getSelection();
+		const { frontmatter, body } = splitFrontmatter(editor.getValue());
+		const input = selection || body;
+		if (!input.trim()) {
+			new Notice("✘ Nothing to post-process");
+			return;
+		}
+
+		const notice = new Notice("Post-processing...", 0);
+		try {
+			const output = await processor.process(
+				input,
+				this.plugin.settings.postProcessingPrompt
+			);
+			if (selection) {
+				editor.replaceSelection(output);
+			} else {
+				// Replace only the body so frontmatter stays untouched
+				const from = editor.offsetToPos(frontmatter.length);
+				const to = editor.offsetToPos(editor.getValue().length);
+				editor.replaceRange(output, from, to);
+			}
+
+			if (this.plugin.settings.autoGenerateTitle) {
+				await this.renameIfUntitled(file, output);
+			}
+			new Notice("Post-processing complete");
+		} catch (err) {
+			console.error("Post-processing failed:", err);
+			new Notice(
+				"✘ Post-processing failed: " +
+					(err instanceof Error ? err.message : String(err))
+			);
+		} finally {
+			notice.hide();
+		}
+	}
+
+	private async renameIfUntitled(
+		file: TFile | null,
+		text: string
+	): Promise<void> {
+		if (!file || !isUntitledName(file.basename)) return;
+		const processor = createPostProcessor(this.plugin.settings);
+		if (!processor) return;
+
+		try {
+			const title = await processor.generateTitle(
+				text,
+				this.plugin.settings.titleGenerationPrompt
+			);
+			if (!title) return;
+
+			const folder =
+				file.parent && file.parent.path !== "/"
+					? `${file.parent.path}/`
+					: "";
+			let path = `${folder}${title}.md`;
+			for (
+				let i = 1;
+				this.plugin.app.vault.getAbstractFileByPath(path);
+				i++
+			) {
+				path = `${folder}${title} ${i}.md`;
+			}
+			await this.plugin.app.fileManager.renameFile(file, path);
+		} catch (err) {
+			console.error("Title generation failed:", err);
 		}
 	}
 }

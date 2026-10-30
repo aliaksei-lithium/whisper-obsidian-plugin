@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import axios from "axios";
-import { PostProcessor } from "../src/PostProcessor";
+import { PostProcessor, createPostProcessor } from "../src/PostProcessor";
+import { DEFAULT_SETTINGS } from "../src/SettingsManager";
 
 vi.mock("axios");
 
@@ -49,5 +50,36 @@ describe("PostProcessor (anthropic)", () => {
 		expect(await anthropic.process("hi", "prompt")).toBe(
 			"Part one. Part two."
 		);
+	});
+});
+
+describe("generateTitle", () => {
+	beforeEach(() => {
+		vi.mocked(axios.post).mockReset();
+	});
+
+	it("returns a filename-safe title", async () => {
+		vi.mocked(axios.post).mockResolvedValue({
+			data: {
+				content: [{ type: "text", text: "Therapy: notes/ideas\n" }],
+			},
+		});
+		expect(await anthropic.generateTitle("text", "prompt")).toBe(
+			"Therapy- notes-ideas"
+		);
+	});
+});
+
+describe("createPostProcessor", () => {
+	it("returns null without an API key for the provider", () => {
+		expect(
+			createPostProcessor({ ...DEFAULT_SETTINGS, anthropicApiKey: "" })
+		).toBeNull();
+	});
+
+	it("creates a processor when the provider has a key", () => {
+		expect(
+			createPostProcessor({ ...DEFAULT_SETTINGS, anthropicApiKey: "k" })
+		).toBeInstanceOf(PostProcessor);
 	});
 });

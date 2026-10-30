@@ -485,7 +485,9 @@ export class WhisperSettingsTab extends PluginSettingTab {
 			.setDesc("Endpoint for post-processing requests")
 			.addText((text) =>
 				text
-					.setPlaceholder("https://api.example.com/v1/chat/completions")
+					.setPlaceholder(
+						"https://api.example.com/v1/chat/completions"
+					)
 					.setValue(this.plugin.settings.postProcessingUrl)
 					.onChange(async (value) => {
 						this.plugin.settings.postProcessingUrl = value;
@@ -547,7 +549,9 @@ export class WhisperSettingsTab extends PluginSettingTab {
 	private createAutoGenerateTitleSetting(): void {
 		new Setting(this.containerEl)
 			.setName("Auto-generate title")
-			.setDesc("Use the LLM to generate a descriptive filename for notes")
+			.setDesc(
+				'Use the LLM to name new note files ({{title}} in the filename template), or rename an "Untitled" note you record into'
+			)
 			.addToggle((toggle) => {
 				toggle
 					.setValue(this.plugin.settings.autoGenerateTitle)
