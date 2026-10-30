@@ -88,6 +88,25 @@ export default class Whisper extends Plugin {
 				});
 			})
 		);
+
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor, info) => {
+				menu.addItem((item) => {
+					item.setTitle(
+						editor.somethingSelected()
+							? "Post-process selection"
+							: "Post-process note"
+					)
+						.setIcon("sparkles")
+						.onClick(() =>
+							this.audioHandler.postProcessEditor(
+								editor,
+								info.file
+							)
+						);
+				});
+			})
+		);
 	}
 
 	onunload() {
