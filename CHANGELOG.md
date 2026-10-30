@@ -1,5 +1,12 @@
 
 
+## [1.9.2](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.9.1...1.9.2) (2026-10-30)
+
+
+### Bug Fixes
+
+* read text blocks from Anthropic post-processing response ([72a1e8a](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/commit/72a1e8ad22806767bd73a0d4eb5a7c766c79b4a5))
+
 ## [1.9.1](https://github.com/nikdanilov/whisper-obsidian-plugin/compare/1.9.0...1.9.1) (2026-04-07)
 
 
