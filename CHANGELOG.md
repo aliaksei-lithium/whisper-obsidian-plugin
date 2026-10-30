@@ -1,5 +1,12 @@
 
 
+## [1.10.0](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.9.3...1.10.0) (2026-10-30)
+
+
+### Features
+
+* post-process existing text and rename Untitled notes ([ee7f5e6](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/commit/ee7f5e6ce3fd1ddfe07236571635d55389b5b71b))
+
 ## [1.9.3](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.9.2...1.9.3) (2026-10-30)
 
 ## [1.9.2](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.9.1...1.9.2) (2026-10-30)
