@@ -1,5 +1,12 @@
 
 
+## [1.12.0](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.11.1...1.12.0) (2026-11-03)
+
+
+### Features
+
+* append transcriptions to the daily note and add URI toggle for iOS widgets ([84786b1](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/commit/84786b18d38d418cc54b25b98e54abe2fae7ab8f))
+
 ## [1.11.1](https://github.com/aliaksei-lithium/whisper-obsidian-plugin/compare/1.11.0...1.11.1) (2026-10-30)
 
 
