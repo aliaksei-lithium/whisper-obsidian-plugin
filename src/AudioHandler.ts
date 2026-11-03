@@ -12,6 +12,14 @@ import {
 	blockSeparator,
 } from "./utils";
 import { createPostProcessor } from "./PostProcessor";
+import { appendToDailyNote } from "./DailyNote";
+
+export interface SendAudioOptions {
+	// Where the transcription goes; "daily" appends to today's daily note
+	target?: "daily";
+	// Open the note that received the text (used when triggered via URI)
+	openNote?: boolean;
+}
 
 export class AudioHandler {
 	private plugin: Whisper;
@@ -29,9 +37,17 @@ export class AudioHandler {
 		}
 	}
 
-	async sendAudioData(blob: Blob, fileName: string): Promise<void> {
+	async sendAudioData(
+		blob: Blob,
+		fileName: string,
+		options: SendAudioOptions = {}
+	): Promise<void> {
 		// Get the base file name without extension
 		const baseFileName = getBaseFileName(fileName);
+
+		const toDailyNote =
+			options.target === "daily" ||
+			this.plugin.settings.appendToDailyNote;
 
 		const audioFilePath = `${
 			this.plugin.settings.audioSavePath
@@ -168,10 +184,12 @@ export class AudioHandler {
 
 			// Auto-generate title for the note filename
 			let generatedTitle = baseFileName;
-			if (
-				this.plugin.settings.autoGenerateTitle &&
-				this.plugin.settings.createNoteFile
-			) {
+			const needsTitle = toDailyNote
+				? this.plugin.settings.dailyNoteEntryTemplate.includes(
+						"{{title}}"
+				  )
+				: this.plugin.settings.createNoteFile;
+			if (this.plugin.settings.autoGenerateTitle && needsTitle) {
 				const processor = createPostProcessor(this.plugin.settings);
 				if (processor) {
 					try {
@@ -194,6 +212,18 @@ export class AudioHandler {
 				finalText !== originalText
 					? `${finalText}\n\n---\n\n*Original transcription:*\n${originalText}`
 					: finalText;
+
+			if (toDailyNote) {
+				const appended = await this.appendToDaily(
+					outputText,
+					generatedTitle,
+					audioFilePath,
+					options.openNote ?? false
+				);
+				// Fall through to the regular output when the daily note
+				// can't be used, so the transcription is never lost
+				if (appended) return;
+			}
 
 			if (this.plugin.settings.createNoteFile) {
 				await this.ensureFolderExists(
@@ -262,6 +292,36 @@ export class AudioHandler {
 				"✘ Transcription failed: " +
 					(err instanceof Error ? err.message : String(err))
 			);
+		}
+	}
+
+	// Appends the transcription to today's daily note. Returns false when the
+	// daily note isn't available so the caller can fall back.
+	private async appendToDaily(
+		outputText: string,
+		title: string,
+		audioFilePath: string,
+		openNote: boolean
+	): Promise<boolean> {
+		const vars = buildTemplateVariables(outputText, title, audioFilePath);
+		const entry = resolveTemplate(
+			this.plugin.settings.dailyNoteEntryTemplate,
+			vars
+		).trim();
+		try {
+			const file = await appendToDailyNote(this.plugin.app, entry);
+			if (openNote) {
+				await this.plugin.app.workspace.getLeaf(false).openFile(file);
+			}
+			new Notice(`Added to ${file.basename}`);
+			return true;
+		} catch (err) {
+			console.error("Couldn't append to daily note:", err);
+			new Notice(
+				"✘ Couldn't append to daily note: " +
+					(err instanceof Error ? err.message : String(err))
+			);
+			return false;
 		}
 	}
 

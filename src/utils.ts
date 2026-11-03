@@ -25,6 +25,7 @@ export interface TemplateVariables {
 	date: string;
 	time: string;
 	datetime: string;
+	clock: string;
 	title: string;
 	transcription: string;
 	audioFile: string;
@@ -38,11 +39,13 @@ export function buildTemplateVariables(
 	const now = new Date();
 	const date = now.toISOString().split("T")[0];
 	const time = now.toTimeString().split(" ")[0].replace(/:/g, "-");
+	const clock = now.toTimeString().slice(0, 5);
 	const datetime = `${date} ${now.toTimeString().split(" ")[0]}`;
 	return {
 		date,
 		time,
 		datetime,
+		clock,
 		title,
 		transcription,
 		audioFile: audioFilePath,
@@ -57,6 +60,7 @@ export function resolveTemplate(
 		.replace(/\{\{date\}\}/g, vars.date)
 		.replace(/\{\{time\}\}/g, vars.time)
 		.replace(/\{\{datetime\}\}/g, vars.datetime)
+		.replace(/\{\{clock\}\}/g, vars.clock)
 		.replace(/\{\{title\}\}/g, vars.title)
 		.replace(/\{\{transcription\}\}/g, vars.transcription)
 		.replace(/\{\{audioFile\}\}/g, vars.audioFile);

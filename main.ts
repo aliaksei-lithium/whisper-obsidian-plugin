@@ -1,7 +1,7 @@
-import { Notice, Plugin, TFile } from "obsidian";
+import { Notice, Platform, Plugin, TFile } from "obsidian";
 import { Timer } from "src/Timer";
 import { Controls } from "src/Controls";
-import { AudioHandler } from "src/AudioHandler";
+import { AudioHandler, SendAudioOptions } from "src/AudioHandler";
 import { WhisperSettingsTab } from "src/WhisperSettingsTab";
 import { SettingsManager, PluginSettings } from "src/SettingsManager";
 import { NativeAudioRecorder } from "src/AudioRecorder";
@@ -15,6 +15,8 @@ export default class Whisper extends Plugin {
 	audioHandler: AudioHandler;
 	controls: Controls | null = null;
 	statusBar: StatusBar;
+	// Output options for the recording in progress (set by URI/commands)
+	private pendingOptions: SendAudioOptions = {};
 
 	async onload() {
 		this.settingsManager = new SettingsManager(this);
@@ -118,7 +120,7 @@ export default class Whisper extends Plugin {
 
 	// --- Recording state transitions (single source of truth) ---
 
-	async startRecording() {
+	async startRecording(options: SendAudioOptions = {}) {
 		if (
 			this.statusBar.status === RecordingStatus.Recording ||
 			this.statusBar.status === RecordingStatus.Paused
@@ -126,11 +128,13 @@ export default class Whisper extends Plugin {
 			new Notice("Already recording");
 			return;
 		}
+		this.pendingOptions = options;
 		try {
 			await this.recorder.startRecording();
 			this.statusBar.updateStatus(RecordingStatus.Recording);
 			new Notice("Recording...");
 		} catch (err) {
+			this.pendingOptions = {};
 			this.statusBar.updateStatus(RecordingStatus.Idle);
 			new Notice("✘ Could not start recording");
 		}
@@ -144,13 +148,30 @@ export default class Whisper extends Plugin {
 			return;
 		}
 		this.statusBar.updateStatus(RecordingStatus.Processing);
+		const options = this.pendingOptions;
+		this.pendingOptions = {};
 		const audioBlob = await this.recorder.stopRecording();
 		const extension = getExtensionFromMimeType(this.recorder.getMimeType());
 		const fileName = `${new Date()
 			.toISOString()
 			.replace(/[:.]/g, "-")}.${extension}`;
-		await this.audioHandler.sendAudioData(audioBlob, fileName);
+		await this.audioHandler.sendAudioData(audioBlob, fileName, options);
 		this.statusBar.updateStatus(RecordingStatus.Idle);
+	}
+
+	get isRecording(): boolean {
+		return (
+			this.statusBar.status === RecordingStatus.Recording ||
+			this.statusBar.status === RecordingStatus.Paused
+		);
+	}
+
+	async toggleRecording(options: SendAudioOptions = {}) {
+		if (this.isRecording) {
+			await this.stopRecording();
+		} else {
+			await this.startRecording(options);
+		}
 	}
 
 	async pauseRecording() {
@@ -172,6 +193,7 @@ export default class Whisper extends Plugin {
 		) {
 			return;
 		}
+		this.pendingOptions = {};
 		await this.recorder.stopRecording();
 		this.statusBar.updateStatus(RecordingStatus.Idle);
 		new Notice("Recording cancelled");
@@ -190,17 +212,14 @@ export default class Whisper extends Plugin {
 		this.addCommand({
 			id: "start-stop-recording",
 			name: "Start/stop recording",
-			callback: async () => {
-				if (
-					this.statusBar.status !== RecordingStatus.Recording &&
-					this.statusBar.status !== RecordingStatus.Paused
-				) {
-					await this.startRecording();
-				} else {
-					await this.stopRecording();
-				}
-			},
+			callback: () => this.toggleRecording(),
 			hotkeys: [{ modifiers: ["Alt"], key: "Q" }],
+		});
+
+		this.addCommand({
+			id: "start-stop-recording-daily-note",
+			name: "Start/stop recording to daily note",
+			callback: () => this.toggleRecording({ target: "daily" }),
 		});
 
 		this.addCommand({
@@ -246,6 +265,21 @@ export default class Whisper extends Plugin {
 		});
 	}
 
+	// On mobile there's no hotkey or status bar, so after a URI-triggered
+	// start show the controls modal with its Stop button
+	private showControlsOnMobile() {
+		if (Platform.isMobile && this.isRecording) {
+			this.openControls();
+		}
+	}
+
+	// Counterpart of showControlsOnMobile for URI-triggered stops
+	private closeControlsIfIdle() {
+		if (!this.isRecording) {
+			this.controls?.close();
+		}
+	}
+
 	// --- URI Handler ---
 
 	registerUriHandler() {
@@ -256,12 +290,25 @@ export default class Whisper extends Plugin {
 				return;
 			}
 
+			// obsidian://whisper?command=start&target=daily
+			const options: SendAudioOptions =
+				params.target === "daily"
+					? { target: "daily", openNote: true }
+					: {};
+
 			switch (command) {
 				case "start":
-					await this.startRecording();
+					await this.startRecording(options);
+					this.showControlsOnMobile();
+					break;
+				case "toggle":
+					await this.toggleRecording(options);
+					this.showControlsOnMobile();
+					this.closeControlsIfIdle();
 					break;
 				case "stop":
 					await this.stopRecording();
+					this.closeControlsIfIdle();
 					break;
 				case "pause":
 					await this.pauseRecording();

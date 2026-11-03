@@ -46,6 +46,8 @@ export interface WhisperSettings {
 	noteSavePath: string;
 	noteFilenameTemplate: string;
 	noteTemplate: string;
+	appendToDailyNote: boolean;
+	dailyNoteEntryTemplate: string;
 	// Advanced
 	debugMode: boolean;
 }
@@ -87,6 +89,9 @@ export const DEFAULT_WHISPER: WhisperSettings = {
 	noteSavePath: "",
 	noteFilenameTemplate: "{{datetime}}",
 	noteTemplate: "![[{{audioFile}}]]\n{{transcription}}",
+	appendToDailyNote: false,
+	dailyNoteEntryTemplate:
+		"## {{clock}}\n![[{{audioFile}}]]\n{{transcription}}",
 	debugMode: false,
 };
 

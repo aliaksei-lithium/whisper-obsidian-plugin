@@ -57,6 +57,12 @@ export class Setting {
 	addDropdown(_cb: any) {
 		return this;
 	}
+	addTextArea(_cb: any) {
+		return this;
+	}
+	setHeading() {
+		return this;
+	}
 	setDisabled(_d: boolean) {
 		return this;
 	}
@@ -91,4 +97,42 @@ export class ButtonComponent {
 
 export class TFolder {
 	path: string = "";
+}
+
+export class TFile {
+	path: string = "";
+	basename: string = "";
+	extension: string = "md";
+	constructor(path: string = "") {
+		this.path = path;
+		const name = path.substring(path.lastIndexOf("/") + 1);
+		const dot = name.lastIndexOf(".");
+		this.basename = dot > 0 ? name.substring(0, dot) : name;
+		this.extension = dot > 0 ? name.substring(dot + 1) : "";
+	}
+}
+
+export const Platform = { isMobile: false };
+
+export function normalizePath(path: string): string {
+	return path
+		.replace(/\\/g, "/")
+		.replace(/\/+/g, "/")
+		.replace(/^\/+|\/+$/g, "");
+}
+
+// Tiny moment stand-in: only the formats the plugin relies on by default
+export function moment() {
+	const pad = (n: number) => String(n).padStart(2, "0");
+	const d = new Date();
+	return {
+		format(fmt: string) {
+			return fmt
+				.replace("YYYY", String(d.getFullYear()))
+				.replace("MM", pad(d.getMonth() + 1))
+				.replace("DD", pad(d.getDate()))
+				.replace("HH", pad(d.getHours()))
+				.replace("mm", pad(d.getMinutes()));
+		},
+	};
 }

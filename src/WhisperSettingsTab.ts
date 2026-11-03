@@ -50,6 +50,10 @@ export class WhisperSettingsTab extends PluginSettingTab {
 
 		// --- Output ---
 		new Setting(containerEl).setName("Output").setHeading();
+		this.createAppendToDailyNoteToggleSetting();
+		if (this.plugin.settings.appendToDailyNote) {
+			this.createDailyNoteEntryTemplateSetting();
+		}
 		this.createNewFileToggleSetting();
 		if (this.plugin.settings.createNoteFile) {
 			this.createNewFilePathSetting();
@@ -338,6 +342,43 @@ export class WhisperSettingsTab extends PluginSettingTab {
 		);
 	}
 
+	private createAppendToDailyNoteToggleSetting(): void {
+		new Setting(this.containerEl)
+			.setName("Append to daily note")
+			.setDesc(
+				"Add each transcription to the end of today's daily note instead of creating a note or pasting at the cursor. Requires the Daily notes core plugin."
+			)
+			.addToggle((toggle) => {
+				toggle
+					.setValue(this.plugin.settings.appendToDailyNote)
+					.onChange(async (value) => {
+						this.plugin.settings.appendToDailyNote = value;
+						await this.save();
+						this.display();
+					});
+			});
+	}
+
+	private createDailyNoteEntryTemplateSetting(): void {
+		new Setting(this.containerEl)
+			.setName("Daily note entry template")
+			.setDesc(
+				"Template for each entry. Variables: {{transcription}}, {{audioFile}}, {{clock}} (HH:MM), {{date}}, {{time}}, {{datetime}}, {{title}}"
+			)
+			.addTextArea((text) => {
+				text.setPlaceholder(
+					"## {{clock}}\n![[{{audioFile}}]]\n{{transcription}}"
+				)
+					.setValue(this.plugin.settings.dailyNoteEntryTemplate)
+					.onChange(async (value) => {
+						this.plugin.settings.dailyNoteEntryTemplate = value;
+						await this.save();
+					});
+				text.inputEl.rows = 4;
+				text.inputEl.cols = 50;
+			});
+	}
+
 	private createNewFileToggleSetting(): void {
 		new Setting(this.containerEl)
 			.setName("Create note file")
@@ -393,7 +434,7 @@ export class WhisperSettingsTab extends PluginSettingTab {
 		new Setting(this.containerEl)
 			.setName("Note template")
 			.setDesc(
-				"Template for note content. Variables: {{transcription}}, {{audioFile}}, {{date}}, {{time}}, {{datetime}}, {{title}}. Use ![[{{audioFile}}]] to embed or [[{{audioFile}}]] to link."
+				"Template for note content. Variables: {{transcription}}, {{audioFile}}, {{date}}, {{time}}, {{datetime}}, {{clock}}, {{title}}. Use ![[{{audioFile}}]] to embed or [[{{audioFile}}]] to link."
 			)
 			.addTextArea((text) => {
 				text.setPlaceholder("![[{{audioFile}}]]\n{{transcription}}")

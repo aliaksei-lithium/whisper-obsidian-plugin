@@ -102,6 +102,7 @@ describe("resolveTemplate", () => {
 		date: "2026-04-05",
 		time: "14-30-00",
 		datetime: "2026-04-05 14:30:00",
+		clock: "14:30",
 		title: "Meeting Notes",
 		transcription: "Hello world",
 		audioFile: "recordings/rec.webm",
